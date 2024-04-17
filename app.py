@@ -14,7 +14,7 @@ from langchain.callbacks import get_openai_callback
 
 import pickle
 from pathlib import Path
-import os
+import os, time
 
  
 # Sidebar contents
@@ -76,22 +76,35 @@ if  authentication_status == None:
 
 
 
+# Streamed response emulator
+def response_generator(prompt, VectorStore, openai_api_key):
+    docs = VectorStore.similarity_search(query=prompt, k=3)
+    llm = OpenAI(openai_api_key=openai_api_key)
+    chain = load_qa_chain(llm=llm, chain_type="stuff")
+    with get_openai_callback() as cb:
+        response = chain.run(input_documents=docs, question=prompt)
+        for word in response.split():
+            yield word + " "
+            time.sleep(0.05)
+
+
 def main():
     # load_dotenv()
 
     authenticator.logout("Logout", "sidebar")
 
-    st.write(f"## Welcome {name}")
+    st.write(f"#### Welcome, {name} 👋")
 
     st.header("Chat with PDF 💬")
  
-    openai_api_key = st.text_input("Enter OpenAI API key:")
+    openai_api_key = st.text_input("Enter your OpenAI API key:")
 
     # upload a PDF file
     pdf = st.file_uploader("Upload your PDF", type="pdf")
  
     # st.write(pdf)
     if pdf is not None:
+
         pdf_reader = PdfReader(pdf)
         
         text = ""
@@ -105,40 +118,33 @@ def main():
             )
         chunks = text_splitter.split_text(text=text)
  
-        # # embeddings
+        # embeddings
         store_name = pdf.name[:-4]
         st.write(f"{store_name}")
-        # st.write(chunks)
- 
-        # if os.path.exists(f"{store_name}.pkl"):
-        #     with open(f"{store_name}.pkl", "rb") as f:
-        #         VectorStore = pickle.load(f)
-        #     # st.write("Embeddings Loaded from the Disk")s
-        # else:
-        #     embeddings = OpenAIEmbeddings()
-        #     VectorStore = FAISS.from_texts(chunks, embedding=embeddings)
-        #     with open(f"{store_name}.pkl", "wb") as f:
-        #         pickle.dump(VectorStore, f)
 
         embeddings = OpenAIEmbeddings(api_key=openai_api_key)
         VectorStore = FAISS.from_texts(chunks, embedding=embeddings)
- 
-        # embeddings = OpenAIEmbeddings()
-        # VectorStore = FAISS.from_texts(chunks, embedding=embeddings)
- 
-        # Accept user questions/query
-        query = st.text_input("Ask questions about your PDF file:")
-        # st.write(query)
- 
-        if query:
-            docs = VectorStore.similarity_search(query=query, k=3)
- 
-            llm = OpenAI(openai_api_key=openai_api_key)
-            chain = load_qa_chain(llm=llm, chain_type="stuff")
-            with get_openai_callback() as cb:
-                response = chain.run(input_documents=docs, question=query)
-                print(cb)
-            st.write(response)
+
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        # Accept user input
+        if prompt := st.chat_input("Discuss about the document you just uploaded ..."):
+            # Add user message to chat history
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            # Display user message in chat message container
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # Display assistant response in chat message container
+            with st.chat_message("assistant"):
+                response = st.write_stream(response_generator(prompt, VectorStore, openai_api_key))
+            # Add assistant response to chat history
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
 
 if authentication_status:

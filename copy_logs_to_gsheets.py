@@ -4,8 +4,9 @@ import streamlit as st
 import datetime as dt
 
 from firebase_admin import credentials, firestore, initialize_app
+from firestore_db import get_firestore_creds
 
-cred = credentials.Certificate(".firebase/chat-bot-poc-a2396-firebase-adminsdk-mmtrn-d6ffc1fb35.json")
+cred = credentials.Certificate(get_firestore_creds())
 initialize_app(cred)
 db = firestore.client()
 

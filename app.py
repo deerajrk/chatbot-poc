@@ -20,11 +20,13 @@ from logger import Logger
 
 log = Logger()
 
+query_params = st.query_params
+agent = query_params.get("agent", "") if query_params is not None else ""
 
  
 # Sidebar contents
 with st.sidebar:
-    st.title("🤖 Docu Chat-Bot")
+    st.title("🤖 Docu Chat-Bot " + agent)
     st.markdown("""
     ## About
     Curious about something? 

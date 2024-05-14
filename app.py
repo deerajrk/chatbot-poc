@@ -16,6 +16,11 @@ import pickle
 from pathlib import Path
 import os, time
 
+from logger import Logger
+
+log = Logger()
+
+
  
 # Sidebar contents
 with st.sidebar:
@@ -145,6 +150,8 @@ def main():
                 response = st.write_stream(response_generator(prompt, VectorStore, openai_api_key))
             # Add assistant response to chat history
             st.session_state.messages.append({"role": "assistant", "content": response})
+
+            log.log_to_firestore(username=username, agent=agent, question=prompt, answer=response)
 
 
 if authentication_status:

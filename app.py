@@ -97,7 +97,7 @@ def main():
 
     st.header("Chat with PDF 💬")
  
-    openai_api_key = st.text_input("Enter your OpenAI API key:")
+    openai_api_key = st.secrets["openai_api_key"]
 
     # upload a PDF file
     pdf = st.file_uploader("Upload your PDF", type="pdf")

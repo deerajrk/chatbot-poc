@@ -1,14 +1,17 @@
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import streamlit as st
-import datetime as dt
-
 from firebase_admin import credentials, firestore, initialize_app
 from firestore_db import get_firestore_creds
+import firebase_admin
 
-cred = credentials.Certificate(get_firestore_creds())
-initialize_app(cred)
-db = firestore.client()
+
+try:
+  firebase_admin.get_app()
+except ValueError:
+  cred = credentials.Certificate(get_firestore_creds())
+  initialize_app(cred)
+  db = firestore.client()
 
 col_ref = db.collection('chat-bot-poc-logs')
 

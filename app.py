@@ -17,6 +17,8 @@ from pathlib import Path
 import os, time
 
 from logger import Logger
+from auth.auth_helper import get_user_credentials
+
 
 log = Logger()
 
@@ -48,31 +50,8 @@ with st.sidebar:
 
 # --- User authentication ---
 hashed_pw_file_path = Path(__file__).parent / "auth/hashed_pw.pkl"
-with hashed_pw_file_path.open("rb") as file:
-    hashed_passwords = pickle.load(file)
-
-credentials = {
-    "usernames": {
-        "deeraj.rk@gmail.com": {
-            "name": "Deeraj Rajkarnikar",
-            "password": hashed_passwords[0],
-            "isAdmin": "True"
-        },
-        "buday@gmail.com": {
-            "name": "Gábor Buday",
-            "password": hashed_passwords[1],
-            "isAdmin": "True"
-        },
-        "deeraj_@hotmail.com": {
-            "name": "Jon Doe",
-            "password": hashed_passwords[2],
-            "isAdmin": "False"
-        }
-    }
-}
-
-authenticator = stauth.Authenticate(credentials, "pdf_chatbot", "BP2RnMBSTtK*wj", cookie_expiry_days=30)
-
+st_creds = get_user_credentials(hashed_pw_file_path)
+authenticator = stauth.Authenticate(st_creds, "pdf_chatbot", "BP2RnMBSTtK*wj", cookie_expiry_days=30)
 name, authentication_status, username = authenticator.login("main")
 
 if authentication_status == False:

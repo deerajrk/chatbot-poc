@@ -13,15 +13,29 @@ from logger import Logger
 from auth.auth_helper import get_user_credentials
 
 import agents.digi_strategy as digi_strategy
+import agents.management_messaging as management_messaging
 
 
 # --- Initializations ---
 log = Logger()
 openai_api_key = st.secrets["openai_api_key"]
 
-# --- Get query params from URL ---
+# --- Get query params from URL to determine which agent ---
 query_params = st.query_params
-agent = query_params.get("agent", "") if query_params is not None else ""
+agent_param = query_params.get("agent", "") if query_params is not None else ""
+if (agent_param == "digiStrategy"):
+    AGENT = digi_strategy
+elif (agent_param == "managementMessaging"):
+    AGENT = management_messaging
+else:
+    # Default agent is management messaging
+    agent_param = "managementMessaging"
+    AGENT = management_messaging
+
+
+# --- Load baked in knowledge for respective agent
+embeddings = OpenAIEmbeddings(api_key=openai_api_key)
+VectorStore = FAISS.load_local(AGENT.KNOWLEDGE_FOLDER, embeddings=embeddings, allow_dangerous_deserialization=True)
 
 
 # --- Sidebar contents ---
@@ -36,10 +50,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 with st.sidebar:
-    st.title("🤖 Docu Chat-Bot: " + digi_strategy.NAME)
-    st.markdown(digi_strategy.DESCRIPTION)
+    st.title("🤖 Docu Chat-Bot: " + AGENT.NAME)
+    st.markdown(AGENT.DESCRIPTION)
     add_vertical_space(1)
-    st.write(digi_strategy.CONTACT)
+    st.write(AGENT.CONTACT)
 
 
 # --- User authentication ---
@@ -54,10 +68,9 @@ if authentication_status == False:
 if  authentication_status == None:
     st.warning("Please enter your username and password to interact with the agent!")
 
+
 # --- Streamed response emulator ---
-def response_generator(prompt, VectorStore, openai_api_key):
-    embeddings = OpenAIEmbeddings(api_key=openai_api_key)
-    VectorStore = FAISS.load_local("./knowledge_base/DigiStrategy", embeddings=embeddings, allow_dangerous_deserialization=True)
+def response_generator(prompt):
     docs = VectorStore.similarity_search(query=prompt, k=3)
     llm = OpenAI(openai_api_key=openai_api_key)
     chain = load_qa_chain(llm=llm, chain_type="stuff")
@@ -78,7 +91,7 @@ def main():
         st.write(f"#### Welcome, {name} 👋")        
         st.header("Chat with Agent 💬")
     with col2:
-        st_lottie(digi_strategy.AGENT_LOTTIE, key="user", quality="high", height="130px", width="130px")
+        st_lottie(AGENT.AGENT_LOTTIE, key="user", quality="high", height="130px", width="130px")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -95,10 +108,10 @@ def main():
             st.markdown(prompt)
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
-            response = st.write_stream(response_generator(prompt, None, openai_api_key))
+            response = st.write_stream(response_generator(prompt))
         # Add assistant response to chat history
         st.session_state.messages.append({"role": "assistant", "content": response})
-        log.log_to_firestore(username=username, agent=agent, question=prompt, answer=response)
+        log.log_to_firestore(username=username, agent=agent_param, question=prompt, answer=response)
 
 
 if authentication_status:
